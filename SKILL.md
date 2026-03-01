@@ -237,3 +237,90 @@ multi-device-sync-github/
 ## License
 
 MIT License - See [LICENSE](LICENSE) for details.
+
+## Security & Safety
+
+### Default Settings (Safe by Default)
+
+- **Auto-push disabled**: `auto_push_enabled: false` by default
+- **Confirmation prompts**: Destructive operations require user confirmation
+- **Selective git operations**: Only configured files are committed
+
+### Installation Safety
+
+**Recommended (Safest):**
+```bash
+git clone https://github.com/RegulusZ/multi-device-sync-github.git
+cd multi-device-sync-github
+./install.sh
+```
+
+**Convenience (Review First):**
+```bash
+# Download and review before executing
+curl -fsSL https://raw.githubusercontent.com/RegulusZ/multi-device-sync-github/main/install.sh -o install.sh
+cat install.sh  # Review the code
+./install.sh
+```
+
+### Data Protection
+
+- **Automatic backups**: Files are backed up before replacement
+- **No external endpoints**: Notifications are local-only
+- **User control**: All operations can be reviewed before execution
+
+### Permissions
+
+The skill requires:
+- Read/write access to `~/.openclaw/workspace/`
+- Git push access to your sync repository
+- No network access beyond GitHub
+
+### Enabling Auto-Push
+
+After reviewing the behavior, enable auto-push:
+
+```bash
+# Edit config
+nano ~/.config/openclaw/sync-config.yaml
+
+# Change:
+auto_push_enabled: true
+```
+
+## Security & Safety
+
+### Default Settings (Safe by Default)
+
+- **Auto-push disabled**: `auto_push_enabled: false` by default
+- **Confirmation prompts**: Destructive operations require user confirmation
+- **Selective git operations**: Only configured files are committed
+
+### Installation Safety
+
+**Recommended (Safest):**
+```bash
+git clone https://github.com/RegulusZ/multi-device-sync-github.git
+cd multi-device-sync-github
+./install.sh
+```
+
+**Convenience (Review First):**
+```bash
+curl -fsSL https://raw.githubusercontent.com/RegulusZ/multi-device-sync-github/main/install.sh -o install.sh
+cat install.sh  # Review before executing
+./install.sh
+```
+
+### Data Protection
+
+- **Automatic backups**: Files backed up before replacement
+- **No external endpoints**: Notifications are local-only
+- **User control**: All operations can be reviewed before execution
+
+### Enabling Auto-Push
+
+After reviewing behavior, enable in config:
+```yaml
+auto_push_enabled: true
+```

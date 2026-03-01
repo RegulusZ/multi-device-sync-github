@@ -13,24 +13,35 @@ Synchronize OpenClaw workspace data across multiple machines using a private Git
 - 🌐 **Cross-platform** - Works on Linux (inotifywait) and macOS (fswatch)
 - 📁 **Selective sync** - Choose which files to synchronize
 - 💬 **Interactive setup** - Guided installation with customization options
+- 🔒 **Safety first** - Built-in protections against data loss
 
-## Quick Start
+## Installation
+
+### Recommended: Git Clone (Secure)
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/RegulusZ/multi-device-sync-github.git
+cd multi-device-sync-github
+
+# 2. Run the installer locally
+./install.sh
+```
+
+This method is **safer** than `curl | bash` because:
+- You can review the code before running
+- The script runs locally, not from a remote source
+- You can verify the repository integrity
+
+### Quick Install (Convenience)
+
+For trusted environments, one-line install:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/RegulusZ/multi-device-sync-github/main/install.sh | bash
 ```
 
-The interactive installer will guide you through:
-1. Choose: First device (upload) or Add to existing sync (download)
-2. Enter your GitHub sync repo URL
-3. Name your device
-4. Select files to sync
-5. Configure sync interval
-
-## Documentation
-
-- [SKILL.md](./SKILL.md) - Full documentation
-- [troubleshooting.md](./references/troubleshooting.md) - Common issues and solutions
+> ⚠️ **Security Note**: This method executes remote code. Only use if you trust the source.
 
 ## Requirements
 
@@ -38,6 +49,18 @@ The interactive installer will guide you through:
 - **Linux**: `inotify-tools`
 - **macOS**: `fswatch`
 
+## Documentation
+
+- [SKILL.md](./SKILL.md) - Full documentation
+- [troubleshooting.md](./references/troubleshooting.md) - Common issues and solutions
+
+## Safety Features
+
+- **Backup before replace**: Existing files are backed up before creating symlinks
+- **Confirmation prompts**: Destructive operations require user confirmation
+- **Selective git operations**: Only configured files are committed and pushed
+- **Local-only notifications**: No data sent to external services
+
 ## License
 
-MIT License - See [LICENSE](LICENSE) for details.
+MIT License - See [LICENSE.txt](./LICENSE.txt) for details.

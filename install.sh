@@ -1,6 +1,6 @@
 #!/bin/bash
 # Multi-Device Sync for OpenClaw - Interactive Installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/RegulusZ/multi-device-sync-github/main/install.sh | bash
+# Usage:  bash| bash
 
 set -e
 
@@ -197,7 +197,7 @@ echo ""
 read -p "Auto push? [Y/n]: " auto_push_input
 case $auto_push_input in
     [Nn]*) AUTO_PUSH="false" ;;
-    *) AUTO_PUSH="true" ;;
+    *) AUTO_PUSH="false" ;;
 esac
 
 echo ""
@@ -260,9 +260,9 @@ if [[ -n "$SYNC_FILES" ]]; then
 fi
 
 # Create config
-~/openclaw-skills/multi-device-sync-github/scripts/sync-init.sh $INIT_ARGS 2>/dev/null || {
+~/openclaw-skills/multi-device-sync-github/scripts/sync-init.sh.sh $INIT_ARGS 2>/dev/null || {
     # Fallback if sync-init doesn't support --sync-files yet
-    ~/openclaw-skills/multi-device-sync-github/scripts/sync-init.sh --device-name "$DEVICE_NAME" --repo-url "$REPO_URL"
+    ~/openclaw-skills/multi-device-sync-github/scripts/sync-init.sh.sh --device-name "$DEVICE_NAME" --repo-url "$REPO_URL"
 }
 
 # Update config with user preferences
@@ -283,10 +283,10 @@ echo ""
 echo -e "${YELLOW}▶️  Starting sync daemon...${NC}"
 
 if [[ "$AUTO_PUSH" == "true" ]]; then
-    ~/openclaw-skills/multi-device-sync-github/scripts/sync-daemon.sh start
+    ~/openclaw-skills/multi-device-sync-github/scripts/sync-daemon.sh.sh start
 else
     # Start only pull daemon
-    ~/openclaw-skills/multi-device-sync-github/scripts/sync-daemon.sh start
+    ~/openclaw-skills/multi-device-sync-github/scripts/sync-daemon.sh.sh start
     # Could modify to disable push watcher
 fi
 
@@ -315,7 +315,7 @@ echo ""
 if [[ "$SYNC_MODE" == "first" ]]; then
     echo -e "${YELLOW}📝 First Device?${NC}"
     echo "  Run this to push initial files:"
-    echo "  ${CYAN}cd ~/openclaw-sync && ./scripts/sync-push${NC}"
+    echo "  ${CYAN}cd ~/openclaw-sync && ./scripts/sync-push.sh${NC}"
     echo ""
 fi
 

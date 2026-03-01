@@ -1,5 +1,6 @@
 #!/bin/bash
 # Push local changes to remote
+# Safety: Only operates on files in sync config
 
 set -e
 
@@ -10,6 +11,10 @@ CONFIG_FILE="$HOME/.config/openclaw/sync-config.yaml"
 # Load config
 if [[ -f "$CONFIG_FILE" ]]; then
     DEVICE_NAME=$(grep "device_name:" "$CONFIG_FILE" | awk '{print $2}' | tr -d '"')
+    AUTO_PUSH=$(grep "auto_push_enabled:" "$CONFIG_FILE" | awk '{print $2}' | tr -d '"' || echo "false")
+else
+    DEVICE_NAME="unknown"
+    AUTO_PUSH="false"
 fi
 DEVICE_NAME="${DEVICE_NAME:-unknown}"
 
@@ -17,7 +22,7 @@ cd "$SYNC_REPO"
 
 # Check if git repo
 if [[ ! -d ".git" ]]; then
-    echo "Error: Not a git repository. Run sync-init first."
+    echo "Error: Not a git repository. Run sync-init.sh first."
     exit 1
 fi
 
@@ -28,22 +33,48 @@ if ! git remote | grep -q "origin"; then
     exit 1
 fi
 
-# Check for changes (including untracked files)
-if git diff --quiet HEAD 2>/dev/null && git diff --cached --quiet 2>/dev/null && [[ -z $(git ls-files --others --exclude-standard) ]]; then
-    # No changes
-    exit 0
+# === SAFETY: Only add specific files from config ===
+# Read sync paths from config
+if [[ -f "$CONFIG_FILE" ]]; then
+    SYNC_PATHS=$(grep -A 10 "paths:" "$CONFIG_FILE" | grep "^    - " | sed 's/^    - //' | tr -d '"')
 fi
 
-# Add all changes
-git add -A
+# If no config, use defaults
+if [[ -z "$SYNC_PATHS" ]]; then
+    SYNC_PATHS="USER.md MEMORY.md SOUL.md skills/ memory/ TOOLS.md"
+fi
+
+# Add only configured paths
+echo "Adding configured files..."
+for path in $SYNC_PATHS; do
+    if [[ -e "$path" ]]; then
+        git add "$path"
+    fi
+done
 
 # Check if there's anything to commit
 if git diff --cached --quiet 2>/dev/null; then
+    echo "No changes to commit"
     exit 0
 fi
 
+# Show what will be committed
+echo ""
+echo "Files to be committed:"
+git diff --cached --stat
+echo ""
+
+# Confirm before commit (unless auto-push)
+if [[ "$AUTO_PUSH" != "true" ]]; then
+    read -p "Commit and push? [y/N]: " confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        echo "Cancelled"
+        exit 0
+    fi
+fi
+
 # Commit with device info
-COMMIT_MSG="sync(${DEVICE_NAME}): auto-update at $(date '+%Y-%m-%d %H:%M:%S')"
+COMMIT_MSG="sync(${DEVICE_NAME}): update at $(date '+%Y-%m-%d %H:%M:%S')"
 git commit -m "$COMMIT_MSG"
 
 # Determine the main branch
@@ -60,12 +91,6 @@ RETRY_COUNT=0
 while [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; do
     if git push origin "$MAIN_BRANCH" 2>/dev/null; then
         echo "✓ Pushed: $COMMIT_MSG"
-        
-        # Send notification
-        if command -v "$SCRIPT_DIR/sync-notify" &> /dev/null; then
-            "$SCRIPT_DIR/sync-notify" "push" "$COMMIT_MSG" &
-        fi
-        
         exit 0
     else
         RETRY_COUNT=$((RETRY_COUNT + 1))
@@ -74,7 +99,7 @@ while [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; do
             echo "⚠ Push failed, pulling and retrying..."
             
             # Pull first
-            "$SCRIPT_DIR/sync-pull" || true
+            "$SCRIPT_DIR/sync-pull.sh" || true
             
             # Rebase our commit on top
             git rebase "origin/$MAIN_BRANCH" 2>/dev/null || {

@@ -1,5 +1,6 @@
 #!/bin/bash
 # Initialize sync repository and configuration
+# Safety features: backup, confirmation, selective operations
 
 set -e
 
@@ -7,6 +8,7 @@ DEVICE_NAME=""
 REPO_URL=""
 FORCE=false
 SYNC_FILES=""
+SKIP_CONFIRM=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -26,6 +28,10 @@ while [[ $# -gt 0 ]]; do
             SYNC_FILES="$2"
             shift 2
             ;;
+        --skip-confirm)
+            SKIP_CONFIRM=true
+            shift
+            ;;
         *)
             echo "Unknown option: $1"
             exit 1
@@ -34,13 +40,14 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$DEVICE_NAME" ]]; then
-    echo "Usage: sync-init --device-name <name> [--repo-url <url>] [--sync-files \"file1 file2\"] [--force]"
+    echo "Usage: sync-init.sh --device-name <name> [options]"
     echo ""
     echo "Options:"
-    echo "  --device-name  Device identifier (ubuntu, macmini, laptop, etc.)"
-    echo "  --repo-url     Git repository URL (optional, can set later)"
-    echo "  --sync-files   Space-separated list of files to sync"
-    echo "  --force        Overwrite existing symlinks without backup"
+    echo "  --device-name   Device identifier (ubuntu, macmini, laptop, etc.)"
+    echo "  --repo-url      Git repository URL (optional, can set later)"
+    echo "  --sync-files    Space-separated list of files to sync"
+    echo "  --force         Skip confirmation prompts (use with caution)"
+    echo "  --skip-confirm  Skip individual confirmations"
     exit 1
 fi
 
@@ -56,7 +63,7 @@ if [[ -z "$SYNC_FILES" ]]; then
     SYNC_FILES="USER.md MEMORY.md SOUL.md skills/ memory/"
 fi
 
-# Check if already initialized
+# Safety: Check if already initialized
 if [[ -d "$SYNC_REPO/.git" ]]; then
     echo "Sync repo already exists at $SYNC_REPO"
 else
@@ -105,7 +112,7 @@ sync_interval_minutes: 5
 device_name: "$DEVICE_NAME"
 conflict_strategy: "notify"
 auto_pull_on_start: true
-auto_push_enabled: true
+auto_push_enabled: false
 
 paths:
   sync:
@@ -147,6 +154,18 @@ for item in $SYNC_FILES; do
             continue
         fi
         
+        # === SAFETY: Check before removing ===
+        if [[ "$FORCE" != "true" && "$SKIP_CONFIRM" != "true" ]]; then
+            echo ""
+            echo "⚠️  File '$item_name' already exists in workspace."
+            echo "    Size: $(du -sh "$WORKSPACE_DIR/$item_name" 2>/dev/null | cut -f1)"
+            read -p "    Backup and replace with symlink? [y/N]: " confirm
+            if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+                echo "    Skipped: $item_name"
+                continue
+            fi
+        fi
+        
         # Handle directory merge
         if [[ "$item" == */ ]] && [[ -d "$WORKSPACE_DIR/$item_name" ]]; then
             mkdir -p "$SYNC_REPO/$item_name"
@@ -166,21 +185,21 @@ for item in $SYNC_FILES; do
             echo "  $item_name: copied to sync repo"
         elif [[ -s "$SYNC_REPO/$item_name" ]] && [[ -s "$WORKSPACE_DIR/$item_name" ]]; then
             # Both have content - backup workspace version
-            if [[ "$FORCE" != "true" ]]; then
-                cp "$WORKSPACE_DIR/$item_name" "$WORKSPACE_DIR/$item_name.backup.$(date +%s)"
-                echo "  $item_name: both exist, workspace version backed up"
-            fi
+            backup_file="$WORKSPACE_DIR/$item_name.backup.$(date +%s)"
+            cp "$WORKSPACE_DIR/$item_name" "$backup_file"
+            echo "  $item_name: backed up to $(basename $backup_file)"
         fi
     fi
     
-    # Create symlink (remove existing file/dir first)
-    if [[ ! -L "$WORKSPACE_DIR/$item_name" ]]; then
-        if [[ -e "$WORKSPACE_DIR/$item_name" ]]; then
-            rm -rf "$WORKSPACE_DIR/$item_name"
-        fi
-        ln -sf "$SYNC_REPO/$item_name" "$WORKSPACE_DIR/$item_name"
-        echo "  $item_name: symlinked"
+    # === SAFETY: Only remove what we've backed up ===
+    if [[ -e "$WORKSPACE_DIR/$item_name" && ! -L "$WORKSPACE_DIR/$item_name" ]]; then
+        # Remove original (already backed up above)
+        rm -rf "$WORKSPACE_DIR/$item_name"
     fi
+    
+    # Create symlink
+    ln -sf "$SYNC_REPO/$item_name" "$WORKSPACE_DIR/$item_name"
+    echo "  $item_name: symlinked"
 done
 
 # Create device-specific memory file
@@ -199,7 +218,8 @@ fi
 if echo "$SYNC_FILES" | grep -q "memory"; then
     if [[ ! -L "$WORKSPACE_DIR/memory" ]]; then
         if [[ -d "$WORKSPACE_DIR/memory" && ! -L "$WORKSPACE_DIR/memory" ]]; then
-            rm -rf "$WORKSPACE_DIR/memory"
+            # === SAFETY: Backup first ===
+            mv "$WORKSPACE_DIR/memory" "$WORKSPACE_DIR/memory.backup.$(date +%s)"
         fi
         ln -sf "$SYNC_REPO/memory" "$WORKSPACE_DIR/memory"
         echo "  memory: symlinked"
@@ -212,10 +232,7 @@ echo "  Repo: $SYNC_REPO"
 echo "  Config: $CONFIG_FILE"
 echo "  Files: $SYNC_FILES"
 echo ""
-echo "Next steps:"
-echo "  1. If not set, add GitHub remote:"
-echo "     cd $SYNC_REPO && git remote add origin <your-repo-url>"
-echo "  2. Push initial commit:"
-echo "     ./scripts/sync-push"
-echo "  3. Start daemon:"
-echo "     ./scripts/sync-daemon start"
+echo "Safety notes:"
+echo "  - Auto-push is disabled by default"
+echo "  - Run './scripts/sync-push.sh' manually when ready"
+echo "  - Or enable auto-push in config: auto_push_enabled: true"
