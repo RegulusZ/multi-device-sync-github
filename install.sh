@@ -271,10 +271,10 @@ if [[ -f "$CONFIG_FILE" ]]; then
     sed -i "s/sync_interval_minutes:.*/sync_interval_minutes: $PULL_INTERVAL/" "$CONFIG_FILE"
 fi
 
-# Create scripts symlink
+# Copy scripts to sync repo
 cd ~/openclaw-sync
 rm -f scripts
-ln -sf ~/openclaw-skills/multi-device-sync-github/scripts scripts
+cp -r ~/openclaw-skills/multi-device-sync-github/scripts scripts
 
 # ============================================
 # Step 9: Start Daemon
