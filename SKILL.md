@@ -64,12 +64,12 @@ git clone git@github.com:YOURNAME/openclaw_sync.git ~/openclaw-sync
 
 # 3. Initialize
 cd ~/openclaw-sync
-~/openclaw-skills/multi-device-sync-github/scripts/sync-init \
+~/openclaw-skills/multi-device-sync-github/scripts/sync-init.sh \
   --device-name mydevice \
   --repo-url "git@github.com:YOURNAME/openclaw_sync.git"
 
 # 4. Start daemon
-~/openclaw-skills/multi-device-sync-github/scripts/sync-daemon start
+~/openclaw-skills/multi-device-sync-github/scripts/sync-daemon.sh start
 ```
 
 ## How It Works
@@ -168,7 +168,7 @@ Shared files (no prefix):
 | `sync-pull` | Manual pull |
 | `sync-push` | Manual push |
 | `sync-resolve` | Interactive conflict resolution |
-| `sync-daemon start/stop/restart/status` | Manage background sync |
+| `sync-daemon.sh start/stop/restart/status` | Manage background sync |
 
 ## Conflict Resolution
 
@@ -194,10 +194,10 @@ curl -fsSL https://raw.githubusercontent.com/RegulusZ/multi-device-sync-github/m
 ```bash
 git clone git@github.com:YOURNAME/openclaw_sync.git ~/openclaw-sync
 cd ~/openclaw-sync
-~/openclaw-skills/multi-device-sync-github/scripts/sync-init \
+~/openclaw-skills/multi-device-sync-github/scripts/sync-init.sh \
   --device-name NEWNAME \
   --repo-url "git@github.com:YOURNAME/openclaw_sync.git"
-~/openclaw-skills/multi-device-sync-github/scripts/sync-daemon start
+~/openclaw-skills/multi-device-sync-github/scripts/sync-daemon.sh start
 ```
 
 ## Troubleshooting
@@ -222,13 +222,13 @@ multi-device-sync-github/
 ├── install.sh                # Interactive installer
 ├── _meta.json                # ClawHub metadata
 ├── scripts/
-│   ├── sync-init             # Initialize sync repo
-│   ├── sync-daemon           # Background sync (pull + push watcher)
-│   ├── sync-push             # Push changes to remote
-│   ├── sync-pull             # Pull changes from remote
-│   ├── sync-status           # Show sync status
-│   ├── sync-now              # Immediate sync
-│   ├── sync-resolve          # Conflict resolution
+│   ├── sync-init.sh             # Initialize sync repo
+│   ├── sync-daemon.sh           # Background sync (pull + push watcher)
+│   ├── sync-push.sh             # Push changes to remote
+│   ├── sync-pull.sh             # Pull changes from remote
+│   ├── sync-status.sh           # Show sync status
+│   ├── sync-now.sh              # Immediate sync
+│   ├── sync-resolve.sh          # Conflict resolution
 │   └── sync-notify           # Notification helper
 └── references/
     └── troubleshooting.md    # Common issues

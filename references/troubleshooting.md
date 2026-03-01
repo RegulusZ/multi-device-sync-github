@@ -18,7 +18,7 @@ brew install fswatch
 
 After installation, restart the daemon:
 ```bash
-sync-daemon restart
+sync-daemon.sh restart
 ```
 
 ### Git authentication failed
@@ -116,7 +116,7 @@ sync-init --device-name NEWNAME
 **Cause:** Sync repo was deleted or moved
 
 **Solution:**
-1. Stop daemon: `sync-daemon stop`
+1. Stop daemon: `sync-daemon.sh stop`
 2. Clone repo again: `git clone git@github.com:USER/REPO.git ~/openclaw-sync`
 3. Re-run init: `sync-init --device-name <name>`
 
@@ -170,7 +170,7 @@ curl -fsSL https://raw.githubusercontent.com/RegulusZ/multi-device-sync-github/m
 Enable verbose logging:
 ```bash
 export SYNC_DEBUG=1
-sync-daemon restart
+sync-daemon.sh restart
 tail -f ~/.openclaw/sync-daemon.log
 ```
 
@@ -180,7 +180,7 @@ If everything breaks:
 
 ```bash
 # 1. Stop daemon
-sync-daemon stop
+sync-daemon.sh stop
 
 # 2. Backup local changes
 cp -r ~/openclaw-sync ~/openclaw-sync-backup-$(date +%s)
@@ -194,7 +194,7 @@ git reset --hard origin/main
 # (from backup)
 
 # 5. Restart
-sync-daemon start
+sync-daemon.sh start
 ```
 
 ## Check Status

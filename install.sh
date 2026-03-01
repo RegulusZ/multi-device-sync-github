@@ -260,9 +260,9 @@ if [[ -n "$SYNC_FILES" ]]; then
 fi
 
 # Create config
-~/openclaw-skills/multi-device-sync-github/scripts/sync-init $INIT_ARGS 2>/dev/null || {
+~/openclaw-skills/multi-device-sync-github/scripts/sync-init.sh $INIT_ARGS 2>/dev/null || {
     # Fallback if sync-init doesn't support --sync-files yet
-    ~/openclaw-skills/multi-device-sync-github/scripts/sync-init --device-name "$DEVICE_NAME" --repo-url "$REPO_URL"
+    ~/openclaw-skills/multi-device-sync-github/scripts/sync-init.sh --device-name "$DEVICE_NAME" --repo-url "$REPO_URL"
 }
 
 # Update config with user preferences
@@ -283,10 +283,10 @@ echo ""
 echo -e "${YELLOW}▶️  Starting sync daemon...${NC}"
 
 if [[ "$AUTO_PUSH" == "true" ]]; then
-    ~/openclaw-skills/multi-device-sync-github/scripts/sync-daemon start
+    ~/openclaw-skills/multi-device-sync-github/scripts/sync-daemon.sh start
 else
     # Start only pull daemon
-    ~/openclaw-skills/multi-device-sync-github/scripts/sync-daemon start
+    ~/openclaw-skills/multi-device-sync-github/scripts/sync-daemon.sh start
     # Could modify to disable push watcher
 fi
 
