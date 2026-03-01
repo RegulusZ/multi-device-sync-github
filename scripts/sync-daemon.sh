@@ -88,7 +88,7 @@ start_push_watcher() {
                 fi
                 
                 echo "[$(date)] File changed: $file, pushing..."
-                "$SCRIPT_DIR/sync-push" || echo "[$(date)] Push failed"
+                "$SCRIPT_DIR/sync-push.sh" || echo "[$(date)] Push failed"
             done
         else
             # Linux - inotifywait
@@ -110,7 +110,7 @@ start_push_watcher() {
                     fi
                     
                     echo "[$(date)] File changed: $path$file ($action), pushing..."
-                    "$SCRIPT_DIR/sync-push" || echo "[$(date)] Push failed"
+                    "$SCRIPT_DIR/sync-push.sh" || echo "[$(date)] Push failed"
                 done
         fi
     ) &
@@ -154,7 +154,7 @@ start_daemon() {
                 AUTO_PULL=$(grep "auto_pull_on_start:" "$CONFIG_FILE" | awk '{print $2}')
                 if [[ "$AUTO_PULL" == "true" ]]; then
                     echo "[$(date)] Initial pull..."
-                    "$SCRIPT_DIR/sync-pull" || true
+                    "$SCRIPT_DIR/sync-pull.sh" || true
                 fi
             fi
             
@@ -169,7 +169,7 @@ start_daemon() {
                 fi
                 
                 # Pull remote changes
-                if ! "$SCRIPT_DIR/sync-pull"; then
+                if ! "$SCRIPT_DIR/sync-pull.sh"; then
                     echo "[$(date)] Pull failed or conflict detected"
                 fi
             done
