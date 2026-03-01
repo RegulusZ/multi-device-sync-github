@@ -10,11 +10,12 @@ Synchronize OpenClaw workspace data across multiple machines using a private Git
 ## Features
 
 - **Automatic push**: File changes trigger immediate git commit + push (via inotifywait/fswatch)
-- **Periodic pull**: Every 5 minutes, pull remote changes
+- **Periodic pull**: Configurable interval (default: 5 minutes) to pull remote changes
 - **Conflict detection**: Manual resolution required on conflicts
 - **Multi-device support**: Each device uses distinct file prefixes for memory files
 - **Cross-platform**: Works on Linux (inotifywait) and macOS (fswatch)
-- **Selective sync**: Only essential data synced, logs/temp excluded
+- **Selective sync**: Choose which files to synchronize
+- **Interactive setup**: Guided installation with customization options
 
 ## Architecture
 
@@ -22,58 +23,52 @@ Synchronize OpenClaw workspace data across multiple machines using a private Git
 Device A (Ubuntu) ◄────► GitHub Repo ◄────► Device B (Mac)
        │                      │                    │
    auto-push              central              auto-push
-  定时pull                 hub               定时pull
+  periodic pull             hub               periodic pull
 ```
 
 ## Prerequisites
 
-### Linux (Ubuntu)
+### Linux (Ubuntu/Debian)
 ```bash
-sudo apt-get install -y inotify-tools
+sudo apt-get install -y git inotify-tools
 ```
 
 ### macOS
 ```bash
-brew install fswatch
+brew install git fswatch
 ```
 
 ## Quick Start
 
-### 1. Create GitHub Repository
-
-Create a **private** repository on GitHub (e.g., `openclaw_sync`).
-
-### 2. Initialize on First Device
+### Interactive Installation (Recommended)
 
 ```bash
-# Clone the skill (if not already)
-cd ~/openclaw-skills
-# Assuming skill is already at: multi-device-sync-github/
-
-# Clone your sync repo
-git clone git@github.com:YOURNAME/openclaw_sync.git ~/openclaw-sync
-
-# Initialize
-cd ~/openclaw-sync
-~/openclaw-skills/multi-device-sync-github/scripts/sync-init \
-  --device-name ubuntu \
-  --repo-url "git@github.com:YOURNAME/openclaw_sync.git"
-
-# Start sync daemon
-~/openclaw-skills/multi-device-sync-github/scripts/sync-daemon start
+curl -fsSL https://raw.githubusercontent.com/RegulusZ/multi-device-sync-github/main/install.sh | bash
 ```
 
-### 3. Add Second Device
+The installer will guide you through:
+1. Choose: First device (upload) or Add to existing sync (download)
+2. Enter your GitHub sync repo URL
+3. Name your device
+4. Select files to sync
+5. Configure sync interval
+
+### Manual Installation
 
 ```bash
-# On Mac Mini
+# 1. Clone skill
+git clone https://github.com/RegulusZ/multi-device-sync-github.git ~/openclaw-skills/multi-device-sync-github
+
+# 2. Clone/create sync repo
 git clone git@github.com:YOURNAME/openclaw_sync.git ~/openclaw-sync
 
+# 3. Initialize
 cd ~/openclaw-sync
 ~/openclaw-skills/multi-device-sync-github/scripts/sync-init \
-  --device-name macmini \
+  --device-name mydevice \
   --repo-url "git@github.com:YOURNAME/openclaw_sync.git"
 
+# 4. Start daemon
 ~/openclaw-skills/multi-device-sync-github/scripts/sync-daemon start
 ```
 
@@ -85,12 +80,11 @@ The skill creates symlinks from your workspace to the sync repo:
 
 ```
 ~/.openclaw/workspace/
-├── SOUL.md      → ~/openclaw-sync/SOUL.md (symlink)
 ├── USER.md      → ~/openclaw-sync/USER.md (symlink)
 ├── MEMORY.md    → ~/openclaw-sync/MEMORY.md (symlink)
-├── TOOLS.md     → ~/openclaw-sync/TOOLS.md (symlink)
-├── memory/      → ~/openclaw-sync/memory/ (symlink)
-└── skills/      → ~/openclaw-sync/skills/ (symlink)
+├── SOUL.md      → ~/openclaw-sync/SOUL.md (symlink)
+├── skills/      → ~/openclaw-sync/skills/ (symlink)
+└── memory/      → ~/openclaw-sync/memory/ (symlink)
 ```
 
 When you edit a file in workspace, you're actually editing the sync repo file.
@@ -109,7 +103,7 @@ git add -A && git commit && git push
 
 ### Periodic Pull
 
-Every 5 minutes (configurable), the daemon pulls remote changes.
+Every N minutes (configurable), the daemon pulls remote changes.
 
 ## Configuration
 
@@ -118,23 +112,35 @@ Edit `~/.config/openclaw/sync-config.yaml`:
 ```yaml
 repo_url: "git@github.com:YOURNAME/openclaw_sync.git"
 sync_interval_minutes: 5
-device_name: "ubuntu"  # Change per device: macmini, laptop, etc.
+device_name: "ubuntu"
 conflict_strategy: "notify"
 auto_pull_on_start: true
+auto_push_enabled: true
 
 paths:
   sync:
-    - "SOUL.md"
     - "USER.md"
     - "MEMORY.md"
-    - "memory/"
+    - "SOUL.md"
     - "skills/"
-    - "TOOLS.md"
+    - "memory/"
   ignore:
     - "logs/"
     - "temp/"
     - "*.log"
 ```
+
+## Syncable Files
+
+| File | Description | Recommended |
+|------|-------------|-------------|
+| `USER.md` | User profile (name, timezone, background) | ✅ Yes |
+| `MEMORY.md` | Long-term memory and important context | ✅ Yes |
+| `SOUL.md` | AI behavior rules and guidelines | ✅ Yes |
+| `skills/` | Installed skills and capabilities | ✅ Yes |
+| `memory/` | Daily logs and session records | ✅ Yes |
+| `TOOLS.md` | Local tool notes and configurations | Optional |
+| `IDENTITY.md` | AI identity (name, vibe, emoji) | Optional (different per device) |
 
 ## File Naming Convention
 
@@ -148,16 +154,15 @@ memory/
 ```
 
 Shared files (no prefix):
-- `SOUL.md`
 - `USER.md`
 - `MEMORY.md`
-- `TOOLS.md`
+- `SOUL.md`
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `sync-init --device-name <name>` | Initialize git repo and config |
+| `sync-init` | Initialize git repo and config |
 | `sync-status` | Check sync status |
 | `sync-now` | Immediate pull + push |
 | `sync-pull` | Manual pull |
@@ -177,45 +182,27 @@ When conflicts detected:
 
 ## Adding New Device
 
-1. Clone repo: `git clone git@github.com:YOURNAME/openclaw_sync.git`
-2. Install file watcher (inotify-tools or fswatch)
-3. Run `./scripts/sync-init --device-name NEWNAME`
-4. Start daemon: `./scripts/sync-daemon start`
+### Option A: Interactive
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/RegulusZ/multi-device-sync-github/main/install.sh | bash
+# Select "Add to existing sync"
+```
+
+### Option B: Manual
+
+```bash
+git clone git@github.com:YOURNAME/openclaw_sync.git ~/openclaw-sync
+cd ~/openclaw-sync
+~/openclaw-skills/multi-device-sync-github/scripts/sync-init \
+  --device-name NEWNAME \
+  --repo-url "git@github.com:YOURNAME/openclaw_sync.git"
+~/openclaw-skills/multi-device-sync-github/scripts/sync-daemon start
+```
 
 ## Troubleshooting
 
-### File watcher not found
-
-**Linux:**
-```bash
-sudo apt-get install inotify-tools
-```
-
-**macOS:**
-```bash
-brew install fswatch
-```
-
-### Git authentication failed
-
-Use SSH keys:
-```bash
-git remote set-url origin git@github.com:USER/REPO.git
-ssh -T git@github.com  # Test connection
-```
-
-### Daemon not starting
-
-Check logs:
-```bash
-tail -f ~/.openclaw/sync-daemon.log
-```
-
-### Conflict loop
-
-- Use device-prefixed memory files (auto-created)
-- Avoid editing shared files (SOUL.md, USER.md) on multiple devices simultaneously
-- Run `sync-resolve` to fix
+See [references/troubleshooting.md](references/troubleshooting.md) for common issues.
 
 ## Security Note
 
@@ -225,33 +212,15 @@ The following files may contain sensitive information:
 - `MEMORY.md` - May include IP addresses, service URLs
 - `memory/` - Daily logs with potentially sensitive details
 
-## Manual Recovery
-
-If everything breaks:
-
-```bash
-# 1. Stop daemon
-sync-daemon stop
-
-# 2. Backup local changes
-cp -r ~/openclaw-sync ~/openclaw-sync-backup-$(date +%s)
-
-# 3. Reset to remote
-cd ~/openclaw-sync
-git fetch origin
-git reset --hard origin/main
-
-# 4. Re-apply local changes manually
-
-# 5. Restart
-sync-daemon start
-```
-
 ## Files in This Skill
 
 ```
 multi-device-sync-github/
 ├── SKILL.md                  # This file
+├── README.md                 # GitHub README
+├── LICENSE                   # MIT License
+├── install.sh                # Interactive installer
+├── _meta.json                # ClawHub metadata
 ├── scripts/
 │   ├── sync-init             # Initialize sync repo
 │   ├── sync-daemon           # Background sync (pull + push watcher)
@@ -265,6 +234,6 @@ multi-device-sync-github/
     └── troubleshooting.md    # Common issues
 ```
 
----
+## License
 
-*Last updated: 2026-03-01*
+MIT License - See [LICENSE](LICENSE) for details.

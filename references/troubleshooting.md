@@ -61,7 +61,7 @@ sync-daemon restart
 
 **Solution:**
 - Use device-prefixed memory files (auto-created)
-- Avoid editing shared files (SOUL.md, USER.md) on multiple devices at once
+- Avoid editing shared files (USER.md, SOUL.md) on multiple devices at once
 - Increase sync frequency if needed (edit `sync_interval_minutes` in config)
 
 ### Large repo / slow sync
@@ -147,6 +147,22 @@ cd ~/openclaw-sync
 rm -rf skills/some-skill/.git
 # Commit the fix
 git add -A && git commit -m "fix: remove nested git repo"
+```
+
+### Interactive installer issues
+
+**Problem:** Installer doesn't prompt for input
+
+**Cause:** Script running in non-interactive mode (piped input)
+
+**Solution:**
+Use environment variables instead:
+```bash
+curl -fsSL https://raw.githubusercontent.com/RegulusZ/multi-device-sync-github/main/install.sh | \
+  REPO_URL="git@github.com:USER/openclaw_sync.git" \
+  DEVICE_NAME="mydevice" \
+  SYNC_MODE="first" \
+  bash
 ```
 
 ## Debug Mode
