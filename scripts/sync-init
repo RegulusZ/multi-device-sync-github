@@ -1,0 +1,228 @@
+#!/bin/bash
+# Initialize sync repository and configuration
+
+set -e
+
+DEVICE_NAME=""
+REPO_URL=""
+FORCE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --device-name)
+            DEVICE_NAME="$2"
+            shift 2
+            ;;
+        --repo-url)
+            REPO_URL="$2"
+            shift 2
+            ;;
+        --force)
+            FORCE=true
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
+if [[ -z "$DEVICE_NAME" ]]; then
+    echo "Usage: sync-init --device-name <name> [--repo-url <url>] [--force]"
+    echo "Example: sync-init --device-name ubuntu"
+    echo ""
+    echo "Options:"
+    echo "  --device-name  Device identifier (ubuntu, macmini, laptop, etc.)"
+    echo "  --repo-url     Git repository URL (optional, can set later)"
+    echo "  --force        Overwrite existing symlinks without backup"
+    exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE_DIR="$HOME/.openclaw/workspace"
+SYNC_REPO="${SYNC_REPO:-$HOME/openclaw-sync}"
+CONFIG_DIR="$HOME/.config/openclaw"
+
+mkdir -p "$CONFIG_DIR"
+
+# Check if already initialized
+if [[ -d "$SYNC_REPO/.git" ]]; then
+    echo "Sync repo already exists at $SYNC_REPO"
+else
+    # Clone or init repo
+    if [[ -n "$REPO_URL" ]]; then
+        echo "Cloning repository..."
+        git clone "$REPO_URL" "$SYNC_REPO"
+        cd "$SYNC_REPO" && git remote set-head origin --auto 2>/dev/null || true
+    else
+        mkdir -p "$SYNC_REPO"
+        cd "$SYNC_REPO"
+        git init
+        echo "Initialized empty repo. Please set remote:"
+        echo "  cd $SYNC_REPO"
+        echo "  git remote add origin <your-repo-url>"
+    fi
+fi
+
+cd "$SYNC_REPO"
+
+# Create .gitignore if not exists
+if [[ ! -f ".gitignore" ]]; then
+    cat > .gitignore << 'EOF'
+logs/
+temp/
+*.log
+.DS_Store
+node_modules/
+.sync-conflicts
+.sync-conflict.log
+*.backup.*
+EOF
+    echo "Created .gitignore"
+fi
+
+# Create default config
+CONFIG_FILE="$CONFIG_DIR/sync-config.yaml"
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    cat > "$CONFIG_FILE" << EOF
+repo_url: "${REPO_URL:-git@github.com:YOURNAME/openclaw-sync.git}"
+sync_interval_minutes: 5
+device_name: "$DEVICE_NAME"
+conflict_strategy: "notify"
+auto_pull_on_start: true
+
+paths:
+  sync:
+    - "SOUL.md"
+    - "USER.md"
+    - "MEMORY.md"
+    - "memory/"
+    - "skills/"
+    
+    - "TOOLS.md"
+  ignore:
+    - "logs/"
+    - "temp/"
+    - "*.log"
+EOF
+    echo "Created config: $CONFIG_FILE"
+else
+    # Update device_name in existing config
+    sed -i "s/device_name:.*/device_name: \"$DEVICE_NAME\"/" "$CONFIG_FILE"
+    echo "Updated device_name in config: $DEVICE_NAME"
+fi
+
+# Setup workspace symlink structure
+echo "Setting up workspace links..."
+for item in SOUL.md USER.md MEMORY.md skills TOOLS.md; do
+    # Check if sync repo has this file/dir
+    if [[ ! -e "$SYNC_REPO/$item" ]]; then
+        # Create empty file/dir in sync repo
+        if [[ "$item" == "skills" ]]; then
+            mkdir -p "$SYNC_REPO/$item"
+        else
+            touch "$SYNC_REPO/$item"
+        fi
+    fi
+    
+    # Check if workspace has this file/dir
+    if [[ -e "$WORKSPACE_DIR/$item" ]]; then
+        # If it's already a symlink, skip
+        if [[ -L "$WORKSPACE_DIR/$item" ]]; then
+            echo "  $item: already symlinked"
+            continue
+        fi
+        
+        # Merge: copy workspace content to sync repo if sync repo is empty
+        if [[ "$item" == "memory" ]]; then
+            # Memory directory: merge contents
+            mkdir -p "$SYNC_REPO/memory"
+            if [[ -d "$WORKSPACE_DIR/memory" ]]; then
+                # Copy memory files that don't exist in sync repo
+                for memfile in "$WORKSPACE_DIR/memory"/*; do
+                    if [[ -f "$memfile" ]]; then
+                        filename=$(basename "$memfile")
+                        if [[ ! -f "$SYNC_REPO/memory/$filename" ]]; then
+                            cp "$memfile" "$SYNC_REPO/memory/$filename"
+                            echo "  memory/$filename: copied to sync repo"
+                        fi
+                    fi
+                done
+            fi
+        elif [[ "$item" == "skills" ]]; then
+            # Skills directory: merge contents
+            mkdir -p "$SYNC_REPO/skills"
+            if [[ -d "$WORKSPACE_DIR/skills" ]]; then
+                for skilldir in "$WORKSPACE_DIR/skills"/*; do
+                    if [[ -d "$skilldir" ]]; then
+                        skillname=$(basename "$skilldir")
+                        if [[ ! -d "$SYNC_REPO/skills/$skillname" ]]; then
+                            cp -r "$skilldir" "$SYNC_REPO/skills/$skillname"
+                            echo "  skills/$skillname: copied to sync repo"
+                        fi
+                    fi
+                done
+            fi
+        else
+            # Regular files: merge if sync repo file is empty
+            if [[ ! -s "$SYNC_REPO/$item" ]] && [[ -s "$WORKSPACE_DIR/$item" ]]; then
+                cp "$WORKSPACE_DIR/$item" "$SYNC_REPO/$item"
+                echo "  $item: copied to sync repo"
+            elif [[ -s "$SYNC_REPO/$item" ]] && [[ -s "$WORKSPACE_DIR/$item" ]]; then
+                # Both have content - backup workspace version
+                if [[ "$FORCE" != "true" ]]; then
+                    cp "$WORKSPACE_DIR/$item" "$WORKSPACE_DIR/$item.backup.$(date +%s)"
+                    echo "  $item: both exist, workspace version backed up"
+                fi
+            fi
+        fi
+    fi
+    
+    # Create symlink (remove existing file/dir first)
+    if [[ ! -L "$WORKSPACE_DIR/$item" ]]; then
+        if [[ -e "$WORKSPACE_DIR/$item" ]]; then
+            rm -rf "$WORKSPACE_DIR/$item"
+        fi
+        ln -sf "$SYNC_REPO/$item" "$WORKSPACE_DIR/$item"
+        echo "  $item: symlinked"
+    fi
+done
+
+# Handle memory directory separately (device-prefixed files)
+mkdir -p "$SYNC_REPO/memory"
+mkdir -p "$WORKSPACE_DIR/memory"
+
+# Create initial device memory file if not exists
+TODAY=$(date +%Y-%m-%d)
+DEVICE_MEMORY="$SYNC_REPO/memory/${DEVICE_NAME}-${TODAY}.md"
+if [[ ! -f "$DEVICE_MEMORY" ]]; then
+    echo "# ${DEVICE_NAME} - ${TODAY}" > "$DEVICE_MEMORY"
+    echo "" >> "$DEVICE_MEMORY"
+    echo "Device: ${DEVICE_NAME}" >> "$DEVICE_MEMORY"
+    echo "Started: $(date)" >> "$DEVICE_MEMORY"
+    echo "Created initial memory file: memory/${DEVICE_NAME}-${TODAY}.md"
+fi
+
+# Ensure memory directory is symlinked
+if [[ ! -L "$WORKSPACE_DIR/memory" ]]; then
+    if [[ -d "$WORKSPACE_DIR/memory" && ! -L "$WORKSPACE_DIR/memory" ]]; then
+        # Memory dir was handled above, now remove for symlink
+        rm -rf "$WORKSPACE_DIR/memory"
+    fi
+    ln -sf "$SYNC_REPO/memory" "$WORKSPACE_DIR/memory"
+    echo "  memory: symlinked"
+fi
+
+echo ""
+echo "✓ Sync initialized for device: $DEVICE_NAME"
+echo "  Repo: $SYNC_REPO"
+echo "  Config: $CONFIG_FILE"
+echo ""
+echo "Next steps:"
+echo "  1. If not set, add GitHub remote:"
+echo "     cd $SYNC_REPO && git remote add origin <your-repo-url>"
+echo "  2. Push initial commit:"
+echo "     ./scripts/sync-push"
+echo "  3. Start daemon:"
+echo "     ./scripts/sync-daemon start"
