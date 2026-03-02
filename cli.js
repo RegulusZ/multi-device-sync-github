@@ -6,7 +6,7 @@
 
 const { Command } = require('commander');
 const prompts = require('prompts');
-const ora = require('ora');
+const oraModule = require('ora'); const ora = oraModule.default || oraModule;
 const path = require('path');
 const fs = require('fs');
 

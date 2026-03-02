@@ -8,6 +8,9 @@ const path = require('path');
 const yaml = require('js-yaml');
 const Conf = require('conf');
 
+// Handle ES module default export
+const ConfigStore = Conf.default || Conf;
+
 const DEFAULT_CONFIG = {
   repo_url: '',
   sync_interval_minutes: 5,
@@ -38,10 +41,15 @@ class ConfigManager {
     this.configDir = this.getConfigDir();
     this.configPath = path.join(this.configDir, 'sync-config.yaml');
     this.config = null;
-    this.store = new Conf({
-      projectName: 'openclaw-sync',
-      defaults: DEFAULT_CONFIG
-    });
+    try {
+      this.store = new ConfigStore({
+        projectName: 'openclaw-sync',
+        defaults: DEFAULT_CONFIG
+      });
+    } catch (err) {
+      // Store is optional, we use YAML file as primary
+      this.store = null;
+    }
   }
 
   getConfigDir() {
@@ -74,7 +82,11 @@ class ConfigManager {
       fs.mkdirSync(dir, { recursive: true });
     }
     fs.writeFileSync(this.configPath, yaml.dump(this.config, { indent: 2 }));
-    this.store.set(this.config);
+    if (this.store) {
+      try {
+        this.store.set(this.config);
+      } catch {}
+    }
   }
 
   get(key) {
