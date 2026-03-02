@@ -1,6 +1,18 @@
 {
-  "ownerId": "regulusz",
-  "slug": "multi-device-sync-github",
-  "version": "1.0.0",
-  "publishedAt": 1740844800000
+  "name": "multi-device-sync-github",
+  "version": "2.0.0",
+  "description": "Multi-device OpenClaw data synchronization using GitHub (cross-platform)",
+  "author": "RegulusZ",
+  "license": "MIT",
+  "keywords": [
+    "openclaw",
+    "sync",
+    "github",
+    "multi-device",
+    "cross-platform"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RegulusZ/multi-device-sync-github.git"
+  }
 }

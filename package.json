@@ -1,0 +1,39 @@
+{
+  "name": "multi-device-sync-github",
+  "version": "2.0.0",
+  "description": "Multi-device OpenClaw data synchronization using GitHub (cross-platform)",
+  "main": "index.js",
+  "bin": {
+    "openclaw-sync": "./cli.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js"
+  },
+  "keywords": [
+    "openclaw",
+    "sync",
+    "github",
+    "multi-device",
+    "cross-platform"
+  ],
+  "author": "RegulusZ",
+  "license": "MIT",
+  "dependencies": {
+    "chokidar": "^3.6.0",
+    "commander": "^12.0.0",
+    "conf": "^13.0.1",
+    "js-yaml": "^4.1.0",
+    "node-notifier": "^10.0.1",
+    "ora": "^8.0.1",
+    "prompts": "^2.4.2",
+    "simple-git": "^3.24.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "os": [
+    "win32",
+    "darwin",
+    "linux"
+  ]
+}

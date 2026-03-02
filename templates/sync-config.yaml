@@ -1,0 +1,38 @@
+# OpenClaw Multi-Device Sync Configuration
+# Edit this file to customize sync behavior
+
+# GitHub repository URL (SSH or HTTPS)
+repo_url: ""
+
+# Unique device name (used in commit messages and memory file prefixes)
+device_name: ""
+
+# How often to pull changes from remote (in minutes)
+sync_interval_minutes: 5
+
+# Strategy for handling conflicts: notify, local, remote
+conflict_strategy: "notify"
+
+# Pull changes on daemon start
+auto_pull_on_start: true
+
+# Automatically push changes when files are modified
+# WARNING: Enable only after testing, may cause frequent commits
+auto_push_enabled: false
+
+# Paths to synchronize (relative to workspace)
+paths:
+  sync:
+    - "USER.md"
+    - "MEMORY.md"
+    - "SOUL.md"
+    - "skills/"
+    - "memory/"
+  
+  # Patterns to ignore (glob patterns)
+  ignore:
+    - "logs/"
+    - "temp/"
+    - "*.log"
+    - "node_modules/"
+    - ".git/"

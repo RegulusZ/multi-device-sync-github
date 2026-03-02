@@ -1,21 +1,128 @@
 ---
 name: multi-device-sync-github
-description: Multi-device OpenClaw data synchronization using GitHub. Manages workspace data sync across multiple machines (Ubuntu, Mac, etc.) with automatic push on file changes, periodic pull, and conflict detection. Use when setting up or managing OpenClaw across multiple devices, configuring data synchronization, resolving sync conflicts, or adding new devices to the sync network.
+description: Multi-device OpenClaw data synchronization using GitHub. Cross-platform (Linux, macOS, Windows). Manages workspace data sync across multiple machines with automatic push on file changes, periodic pull, and conflict detection. Use when setting up or managing OpenClaw across multiple devices.
 ---
 
 # Multi-Device Sync via GitHub
 
-Synchronize OpenClaw workspace data across multiple machines using a private GitHub repository.
+Cross-platform synchronization of OpenClaw workspace data using a private GitHub repository.
 
 ## Features
 
-- **Automatic push**: File changes trigger immediate git commit + push (via inotifywait/fswatch)
-- **Periodic pull**: Configurable interval (default: 5 minutes) to pull remote changes
-- **Conflict detection**: Manual resolution required on conflicts
-- **Multi-device support**: Each device uses distinct file prefixes for memory files
-- **Cross-platform**: Works on Linux (inotifywait) and macOS (fswatch)
-- **Selective sync**: Choose which files to synchronize
-- **Interactive setup**: Guided installation with customization options
+- **Cross-platform**: Linux, macOS, Windows
+- **Automatic push**: File changes trigger git commit + push (configurable)
+- **Periodic pull**: Configurable interval to pull remote changes
+- **Conflict detection**: Interactive conflict resolution
+- **Multi-device**: Each device uses distinct prefixes for memory files
+- **Symlink architecture**: Seamless integration with workspace
+
+## Supported Platforms
+
+| Platform | Service Manager | File Watcher |
+|----------|----------------|--------------|
+| Linux | systemd | chokidar |
+| macOS | launchd | chokidar |
+| Windows | Task Scheduler | chokidar |
+
+## Prerequisites
+
+- Node.js 18+
+- Git
+- GitHub account with private repository
+
+## Installation
+
+```bash
+npx clawhub install multi-device-sync-github
+```
+
+Or via npm:
+
+```bash
+npm install multi-device-sync-github
+```
+
+## Quick Start
+
+### Interactive Setup
+
+```bash
+npx openclaw-sync setup
+```
+
+The setup wizard will guide you through:
+1. Enter your GitHub sync repo URL
+2. Name your device
+3. Configure auto-push and sync interval
+
+### Manual Sync
+
+```bash
+npx openclaw-sync sync
+```
+
+### Check Status
+
+```bash
+npx openclaw-sync status
+```
+
+## CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `setup` | Interactive setup wizard |
+| `sync` | Immediate sync (pull + push) |
+| `status` | Show sync status |
+| `resolve` | Resolve conflicts interactively |
+| `start` | Start background sync service |
+| `stop` | Stop background sync service |
+| `add-device` | Add a new device to sync network |
+
+## Configuration
+
+Configuration file: `~/.config/openclaw/sync-config.yaml` (Linux/macOS) or `%APPDATA%\openclaw\sync-config.yaml` (Windows)
+
+```yaml
+repo_url: "git@github.com:username/openclaw-sync.git"
+device_name: "ubuntu"
+sync_interval_minutes: 5
+auto_pull_on_start: true
+auto_push_enabled: false
+
+paths:
+  sync:
+    - "USER.md"
+    - "MEMORY.md"
+    - "SOUL.md"
+    - "skills/"
+    - "memory/"
+```
+
+## OpenClaw Skill API
+
+This skill can be invoked directly by OpenClaw:
+
+```javascript
+// Setup sync
+await setup({
+  repoUrl: "git@github.com:username/openclaw-sync.git",
+  deviceName: "ubuntu"
+});
+
+// Immediate sync
+await sync_now();
+
+// Check status
+await check_status();
+
+// Resolve conflicts
+await resolve_conflicts();
+
+// Start/stop background sync
+await start_sync();
+await stop_sync();
+```
 
 ## Architecture
 
@@ -24,59 +131,13 @@ Device A (Ubuntu) ◄────► GitHub Repo ◄────► Device B (Ma
        │                      │                    │
    auto-push              central              auto-push
   periodic pull             hub               periodic pull
+       │                      │                    │
+   symlinks                  │                 symlinks
+       ▼                      │                    ▼
+~/.openclaw/workspace         │            ~/.openclaw/workspace
 ```
-
-## Prerequisites
-
-### Linux (Ubuntu/Debian)
-```bash
-sudo apt-get install -y git inotify-tools
-```
-
-### macOS
-```bash
-brew install git fswatch
-```
-
-## Quick Start
-
-### Interactive Installation (Recommended)
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/RegulusZ/multi-device-sync-github/main/install.sh | bash
-```
-
-The installer will guide you through:
-1. Choose: First device (upload) or Add to existing sync (download)
-2. Enter your GitHub sync repo URL
-3. Name your device
-4. Select files to sync
-5. Configure sync interval
-
-### Manual Installation
-
-```bash
-# 1. Clone skill
-git clone https://github.com/RegulusZ/multi-device-sync-github.git ~/openclaw-skills/multi-device-sync-github
-
-# 2. Clone/create sync repo
-git clone git@github.com:YOURNAME/openclaw_sync.git ~/openclaw-sync
-
-# 3. Initialize
-cd ~/openclaw-sync
-~/openclaw-skills/multi-device-sync-github/scripts/sync-init.sh \
-  --device-name mydevice \
-  --repo-url "git@github.com:YOURNAME/openclaw_sync.git"
-
-# 4. Start daemon
-~/openclaw-skills/multi-device-sync-github/scripts/sync-daemon.sh start
-```
-
-## How It Works
 
 ### Symlink Architecture
-
-The skill creates symlinks from your workspace to the sync repo:
 
 ```
 ~/.openclaw/workspace/
@@ -87,60 +148,32 @@ The skill creates symlinks from your workspace to the sync repo:
 └── memory/      → ~/openclaw-sync/memory/ (symlink)
 ```
 
-When you edit a file in workspace, you're actually editing the sync repo file.
+## Conflict Resolution
 
-### Auto-Push Flow
+When conflicts occur during pull:
 
-```
-File changed in workspace
-    ↓ (symlink)
-File changed in sync repo
-    ↓ (inotifywait/fswatch)
-Wait 2 seconds (debounce)
-    ↓
-git add -A && git commit && git push
-```
+1. Sync pauses automatically
+2. Run `npx openclaw-sync resolve`
+3. Choose for each conflicted file:
+   - Keep local (ours)
+   - Keep remote (theirs)
+   - Open in editor (manual)
+   - Abort sync
 
-### Periodic Pull
+## Adding New Device
 
-Every N minutes (configurable), the daemon pulls remote changes.
+### Option A: Interactive
 
-## Configuration
-
-Edit `~/.config/openclaw/sync-config.yaml`:
-
-```yaml
-repo_url: "git@github.com:YOURNAME/openclaw_sync.git"
-sync_interval_minutes: 5
-device_name: "ubuntu"
-conflict_strategy: "notify"
-auto_pull_on_start: true
-auto_push_enabled: true
-
-paths:
-  sync:
-    - "USER.md"
-    - "MEMORY.md"
-    - "SOUL.md"
-    - "skills/"
-    - "memory/"
-  ignore:
-    - "logs/"
-    - "temp/"
-    - "*.log"
+```bash
+npx openclaw-sync add-device
 ```
 
-## Syncable Files
+### Option B: Manual
 
-| File | Description | Recommended |
-|------|-------------|-------------|
-| `USER.md` | User profile (name, timezone, background) | ✅ Yes |
-| `MEMORY.md` | Long-term memory and important context | ✅ Yes |
-| `SOUL.md` | AI behavior rules and guidelines | ✅ Yes |
-| `skills/` | Installed skills and capabilities | ✅ Yes |
-| `memory/` | Daily logs and session records | ✅ Yes |
-| `TOOLS.md` | Local tool notes and configurations | Optional |
-| `IDENTITY.md` | AI identity (name, vibe, emoji) | Optional (different per device) |
+```bash
+npx openclaw-sync setup --repo-url git@github.com:user/sync.git --device-name laptop
+npx openclaw-sync start
+```
 
 ## File Naming Convention
 
@@ -148,179 +181,52 @@ Memory files use device prefix to avoid conflicts:
 
 ```
 memory/
-├── ubuntu-2026-03-01.md      # Ubuntu device
-├── macmini-2026-03-01.md     # Mac Mini device
-└── laptop-2026-03-01.md      # Laptop device
+├── ubuntu-2026-03-02.md      # Ubuntu device
+├── macmini-2026-03-02.md     # Mac Mini device
+└── laptop-2026-03-02.md      # Laptop device
 ```
 
-Shared files (no prefix):
-- `USER.md`
-- `MEMORY.md`
-- `SOUL.md`
+## Security
 
-## Commands
-
-| Command | Description |
-|---------|-------------|
-| `sync-init` | Initialize git repo and config |
-| `sync-status` | Check sync status |
-| `sync-now` | Immediate pull + push |
-| `sync-pull` | Manual pull |
-| `sync-push` | Manual push |
-| `sync-resolve` | Interactive conflict resolution |
-| `sync-daemon.sh start/stop/restart/status` | Manage background sync |
-
-## Conflict Resolution
-
-When conflicts detected:
-
-1. Sync paused automatically
-2. Run `sync-resolve` to:
-   - View conflicting files
-   - Choose: keep-local / keep-remote / merge-manual / view-diff
-3. Resume sync after resolution
-
-## Adding New Device
-
-### Option A: Interactive
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/RegulusZ/multi-device-sync-github/main/install.sh | bash
-# Select "Add to existing sync"
-```
-
-### Option B: Manual
-
-```bash
-git clone git@github.com:YOURNAME/openclaw_sync.git ~/openclaw-sync
-cd ~/openclaw-sync
-~/openclaw-skills/multi-device-sync-github/scripts/sync-init.sh \
-  --device-name NEWNAME \
-  --repo-url "git@github.com:YOURNAME/openclaw_sync.git"
-~/openclaw-skills/multi-device-sync-github/scripts/sync-daemon.sh start
-```
-
-## Troubleshooting
-
-See [references/troubleshooting.md](references/troubleshooting.md) for common issues.
-
-## Security Note
-
-**Use a private GitHub repository** to protect your personal data.
-
-The following files may contain sensitive information:
-- `MEMORY.md` - May include IP addresses, service URLs
-- `memory/` - Daily logs with potentially sensitive details
+- **Use a private GitHub repository** to protect personal data
+- Sensitive files may include:
+  - `MEMORY.md` - May contain IP addresses, service URLs
+  - `memory/` - Daily logs with potentially sensitive details
+- **Never commit API keys or passwords**
 
 ## Files in This Skill
 
 ```
 multi-device-sync-github/
-├── SKILL.md                  # This file
-├── README.md                 # GitHub README
-├── LICENSE                   # MIT License
-├── install.sh                # Interactive installer
-├── _meta.json                # ClawHub metadata
-├── scripts/
-│   ├── sync-init.sh             # Initialize sync repo
-│   ├── sync-daemon.sh           # Background sync (pull + push watcher)
-│   ├── sync-push.sh             # Push changes to remote
-│   ├── sync-pull.sh             # Pull changes from remote
-│   ├── sync-status.sh           # Show sync status
-│   ├── sync-now.sh              # Immediate sync
-│   ├── sync-resolve.sh          # Conflict resolution
-│   └── sync-notify           # Notification helper
-└── references/
-    └── troubleshooting.md    # Common issues
+├── index.js              # OpenClaw skill API
+├── cli.js                # Command-line interface
+├── package.json          # npm dependencies
+├── SKILL.md              # This file
+├── README.md             # GitHub README
+├── src/
+│   ├── core/
+│   │   ├── sync-manager.js     # Core sync logic
+│   │   ├── git-ops.js          # Git operations
+│   │   ├── file-watcher.js     # File monitoring
+│   │   └── conflict-resolver.js # Conflict handling
+│   ├── platforms/
+│   │   ├── base.js             # Platform abstraction
+│   │   ├── linux.js            # Linux (systemd)
+│   │   ├── macos.js            # macOS (launchd)
+│   │   └── windows.js          # Windows (Task Scheduler)
+│   └── utils/
+│       ├── config.js           # Configuration
+│       ├── logger.js           # Logging
+│       └── notify.js           # Notifications
+└── templates/
+    └── sync-config.yaml        # Config template
 ```
 
 ## License
 
-MIT License - See [LICENSE](LICENSE) for details.
+MIT License
 
-## Security & Safety
+## Version History
 
-### Default Settings (Safe by Default)
-
-- **Auto-push disabled**: `auto_push_enabled: false` by default
-- **Confirmation prompts**: Destructive operations require user confirmation
-- **Selective git operations**: Only configured files are committed
-
-### Installation Safety
-
-**Recommended (Safest):**
-```bash
-git clone https://github.com/RegulusZ/multi-device-sync-github.git
-cd multi-device-sync-github
-./install.sh
-```
-
-**Convenience (Review First):**
-```bash
-# Download and review before executing
-curl -fsSL https://raw.githubusercontent.com/RegulusZ/multi-device-sync-github/main/install.sh -o install.sh
-cat install.sh  # Review the code
-./install.sh
-```
-
-### Data Protection
-
-- **Automatic backups**: Files are backed up before replacement
-- **No external endpoints**: Notifications are local-only
-- **User control**: All operations can be reviewed before execution
-
-### Permissions
-
-The skill requires:
-- Read/write access to `~/.openclaw/workspace/`
-- Git push access to your sync repository
-- No network access beyond GitHub
-
-### Enabling Auto-Push
-
-After reviewing the behavior, enable auto-push:
-
-```bash
-# Edit config
-nano ~/.config/openclaw/sync-config.yaml
-
-# Change:
-auto_push_enabled: true
-```
-
-## Security & Safety
-
-### Default Settings (Safe by Default)
-
-- **Auto-push disabled**: `auto_push_enabled: false` by default
-- **Confirmation prompts**: Destructive operations require user confirmation
-- **Selective git operations**: Only configured files are committed
-
-### Installation Safety
-
-**Recommended (Safest):**
-```bash
-git clone https://github.com/RegulusZ/multi-device-sync-github.git
-cd multi-device-sync-github
-./install.sh
-```
-
-**Convenience (Review First):**
-```bash
-curl -fsSL https://raw.githubusercontent.com/RegulusZ/multi-device-sync-github/main/install.sh -o install.sh
-cat install.sh  # Review before executing
-./install.sh
-```
-
-### Data Protection
-
-- **Automatic backups**: Files backed up before replacement
-- **No external endpoints**: Notifications are local-only
-- **User control**: All operations can be reviewed before execution
-
-### Enabling Auto-Push
-
-After reviewing behavior, enable in config:
-```yaml
-auto_push_enabled: true
-```
+- **2.0.0** - Complete rewrite in JavaScript for cross-platform support
+- **1.0.0** - Initial shell-based version (Linux/macOS only)
